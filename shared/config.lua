@@ -1,10 +1,10 @@
 Config = Config or {}
 
-Config.ShortCalls = false -- Dispatch notifications are sent containing only the alert name, omitting additional details. For more information, the dispatch menu can be accessed.  
+Config.ShortCalls = true -- Dispatch notifications are sent containing only the alert name, omitting additional details. For more information, the dispatch menu can be accessed.  
 Config.Debug = false -- Enables debug and send alerts when leo break the law.
 
 Config.RespondKeybind = 'E'
-Config.OpenDispatchMenu = 'O'
+Config.OpenDispatchMenu = 'J'
 Config.AlertTime = 5     -- Specify the duration for the alert to appear on the screen. The default time is 5 seconds for all alerts. To set a different duration for specific alerts, change the value in `alertTime = nil` found in the alerts.lua file.
 
 Config.MaxCallList = 25 -- maximum dispatch calls in dispatch list
@@ -37,7 +37,7 @@ Config.EnableHuntingBlip = true
 
 Config.Locations = {
     ["HuntingZones"] = {
-        [1] = {label = "Hunting Zone", radius = 650.0, coords = vector3(-938.61, 4823.99, 313.92)},
+        [1] = {label = "Zone de Chasse", radius = 650.0, coords = vector3(-1423.87, 4857.57, 120.96)},
     },
     ["NoDispatchZones"] = {
         [1] = {label = "Ammunation 1", coords = vector3(13.53, -1097.92, 29.8), length = 14.0, width = 5.0, heading = 70, minZ = 28.8, maxZ = 32.8},
@@ -61,7 +61,8 @@ Config.WeaponWhitelist = {
     'WEAPON_FIREEXTINGUISHER',
     'WEAPON_HAZARDCAN',
     'WEAPON_RAYCARBINE',
-    'WEAPON_STUNGUN'
+    'WEAPON_STUNGUN',
+    'WEAPON_BEANBAGSHOTGUN'
 }
 
 Config.Blips = {
