@@ -1,6 +1,5 @@
 local function CustomAlert(data)
     local coords = data.coords or vec3(0.0, 0.0, 0.0)
-    if data.job then job = data.job end
     local gender = GetPlayerGender()
     if not data.gender then gender = nil end
 
@@ -25,17 +24,16 @@ local function CustomAlert(data)
         automaticGunfire = data.automaticGunfire or false, -- Automatic Gun or not
         alert = {
             radius = data.radius or 0, -- Radius around the blip
-            recipientList = job, -- job
             sprite = data.sprite or 1, -- Sprite of the blip
             color = data.color or 1, -- Color of the blip
             scale = data.scale or 0.5, -- Scale of the blip
             length = data.length or 2, -- How long it stays on the map
             sound = data.sound or "Lose_1st", -- Alert sound
             sound2 = data.sound2 or "GTAO_FM_Events_Soundset", -- Alert sound
-            offset = data.offset or "false", -- Blip / radius offset
-            flash = data.flash or "false" -- Blip flash
+            offset = data.offset or false, -- Blip / radius offset
+            flash = data.flash or false -- Blip flash
         },
-        jobs = { 'leo' },
+        jobs = data.jobs or { 'leo' },
     }
 
     TriggerServerEvent('ps-dispatch:server:notify', dispatchData)
@@ -596,10 +594,20 @@ end
 --- @param data string -- Message
 --- @param type string -- What type of emergency
 --- @param anonymous boolean -- Is the call anonymous
+local pslastaction = 0
 RegisterNetEvent('ps-dispatch:client:sendEmergencyMsg', function(data, type, anonymous)
+    local year, month , day , hour, minute, second  = GetUtcTime()
+    local idtrack = tonumber(hour..minute..second)
+    local spamdetek = idtrack - pslastaction
+    if spamdetek < 0 then spamdetek = Config.AlertCommandCooldown end
+    if spamdetek <= Config.AlertCommandCooldown and pslastaction > 0 then
+    pslastaction = idtrack
+    QBCore.Functions.Notify("Command on cooldown", "error")
+    else
+    pslastaction = idtrack
     local jobs = { ['911'] = { 'leo' }, ['311'] = { 'ems' } }
-
     PhoneCall(data, anonymous, jobs[type], type)
+    end
 end)
 
 
@@ -786,3 +794,23 @@ local function SignRobbery()
     TriggerServerEvent('ps-dispatch:server:notify', dispatchData)
 end
 exports('SignRobbery', SignRobbery)
+
+local function BobcatSecurityHeist()
+    local coords = GetEntityCoords(cache.ped)
+
+    local dispatchData = {
+        message = locale('bobcatsecurity'),
+        codeName = 'bobcatsecurityheist',
+        code = '10-90',
+        icon = 'fa-solid fa-building-shield',
+        priority = 2,
+        coords = coords,
+        gender = GetPlayerGender(),
+        street = GetStreetAndZone(coords),
+        alertTime = nil,
+        jobs = { 'leo'}
+    }
+
+    TriggerServerEvent('ps-dispatch:server:notify', dispatchData)
+end
+exports('BobcatSecurityHeist', BobcatSecurityHeist)

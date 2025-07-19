@@ -9,10 +9,12 @@ Config.AlertTime = 5     -- Specify the duration for the alert to appear on the 
 
 Config.MaxCallList = 25 -- maximum dispatch calls in dispatch list
 Config.OnDutyOnly = true -- Set true if only on duty players can see the alert
-Config.Jobs = { -- Job Types that can access the dispatch menu
+Config.Jobs = { -- Job Types or names that can access the dispatch menu. If you want to allow more jobs to see certain dispatch alerts. Go to alerts.lua and add the job name to the alert.
     "leo",
     "ems"
 }
+
+Config.AlertCommandCooldown = 60 -- this would make the command work every 60 seconds to avoid spamming
 
 Config.DefaultAlertsDelay = 5 -- Delay between each default alert, prevent spamming
 Config.DefaultAlerts = {
@@ -235,6 +237,16 @@ Config.Blips = {
         flash = false
     },
     ['pacificbankrobbery'] = {
+        radius = 0,
+        sprite = 500,
+        color = 5,
+        scale = 1.5,
+        length = 2,
+        sound = 'robberysound',
+        offset = false,
+        flash = false
+    },
+    ['bobcatsecurityheist'] = {
         radius = 0,
         sprite = 500,
         color = 5,

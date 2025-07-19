@@ -1,7 +1,7 @@
 QBCore = exports['qb-core']:GetCoreObject()
 PlayerData = {}
 inHuntingZone, inNoDispatchZone = false, false
-huntingzone, nodispatchzone = nil , nil
+local huntingZones, nodispatchZones, huntingBlips = {} , {}, {}
 
 local blips = {}
 local radius2 = {}
@@ -14,6 +14,79 @@ local waypointCooldown = false
 local function toggleUI(bool)
     SetNuiFocus(bool, bool)
     SendNUIMessage({ action = "setVisible", data = bool })
+end
+
+-- Zone Functions --
+local function removeZones()
+    -- Hunting Zone --
+    for i = 1, #huntingZones do
+        huntingZones[i]:remove()
+    end
+    -- No Dispatch Zone --
+    for i = 1, #nodispatchZones do
+        nodispatchZones[i]:remove()
+    end
+    -- Hunting Blips --
+    for i = 1, #huntingBlips do
+        RemoveBlip(huntingBlips[i])
+    end
+    -- Reset the stored values too
+    huntingZones, nodispatchZones, huntingBlips = {} , {}, {}
+end
+
+local function createZones()
+    -- Hunting Zone --
+    if Config.Locations['HuntingZones'][1] then
+    	for _, hunting in pairs(Config.Locations["HuntingZones"]) do
+            -- Creates the Blips
+            if Config.EnableHuntingBlip then
+                local blip = AddBlipForCoord(hunting.coords.x, hunting.coords.y, hunting.coords.z)
+                local huntingradius = AddBlipForRadius(hunting.coords.x, hunting.coords.y, hunting.coords.z, hunting.radius)
+                SetBlipSprite(blip, 442)
+                SetBlipAsShortRange(blip, true)
+                SetBlipScale(blip, 0.8)
+                SetBlipColour(blip, 0)
+                SetBlipColour(huntingradius, 0)
+                SetBlipAlpha(huntingradius, 40)
+                BeginTextCommandSetBlipName("STRING")
+                AddTextComponentString(hunting.label)
+                EndTextCommandSetBlipName(blip)
+                huntingBlips[#huntingBlips+1] = blip
+                huntingBlips[#huntingBlips+1] = huntingradius
+            end
+            -- Creates the Sphere --
+            local huntingZone = lib.zones.sphere({
+                coords = hunting.coords,
+                radius = hunting.radius,
+                debug = Config.Debug,
+                onEnter = function()
+                    inHuntingZone = true
+                end,
+                onExit = function()
+                    inHuntingZone = false
+                end
+            })
+            huntingZones[#huntingZones+1] = huntingZone
+    	end
+    end
+    -- No Dispatch Zone --
+    if Config.Locations['NoDispatchZones'][1] then
+    	for _, nodispatch in pairs(Config.Locations["NoDispatchZones"]) do
+            local nodispatchZone = lib.zones.box({
+                coords = nodispatch.coords,
+                size = vec3(nodispatch.length, nodispatch.width, nodispatch.maxZ - nodispatch.minZ),
+                rotation = nodispatch.heading,
+                debug = Config.Debug,
+                onEnter = function()
+                    inNoDispatchZone = true
+                end,
+                onExit = function()
+                    inNoDispatchZone = false
+                end
+            })
+            nodispatchZones[#nodispatchZones+1] = nodispatchZone
+    	end
+    end
 end
 
 local function setupDispatch()
@@ -37,8 +110,6 @@ local function setupDispatch()
 
     Wait(1000)
 
-    createZones()
-
     SendNUIMessage({
         action = "setupUI",
         data = {
@@ -54,12 +125,14 @@ end
 ---@param data string | table -- The player job or an array of jobs to check against
 ---@return boolean -- Returns true if the job is valid
 local function isJobValid(data)
+    if PlayerData.job == nil then return false end
     local jobType = PlayerData.job.type
+    local jobName = PlayerData.job.name
 
     if type(data) == "string" then
-        return lib.table.contains(Config.Jobs, data)
+        return lib.table.contains(Config.Jobs, data) or lib.table.contains(Config.Jobs, jobName)
     elseif type(data) == "table" then
-        return lib.table.contains(data, jobType)
+        return lib.table.contains(data, jobType) or lib.table.contains(data, jobName)
     end
 
     return false
@@ -79,12 +152,16 @@ end
 
 local function setWaypoint()
     if not isJobValid(PlayerData.job.type) then return end
-
+    if not IsOnDuty() then return end
+    
     local data = lib.callback.await('ps-dispatch:callback:getLatestDispatch', false)
-
+    
     if not data then return end
-
+    
     if data.alertTime == nil then data.alertTime = Config.AlertTime end
+    
+    if data.time < GetGameTimer() * 1000 then return end
+    
     local timer = data.alertTime * 1000
     
     if not waypointCooldown and lib.table.contains(data.jobs, PlayerData.job.type) then
@@ -171,65 +248,6 @@ local function addBlip(data, blipData)
     end
 end
 
--- Zone Functions --
-function createZones()
-    -- Hunting Zone --
-    if Config.Locations['HuntingZones'][1] then
-    	for _, hunting in pairs(Config.Locations["HuntingZones"]) do
-            -- Creates the Blips
-            if Config.EnableHuntingBlip then
-                local blip = AddBlipForCoord(hunting.coords.x, hunting.coords.y, hunting.coords.z)
-                local huntingradius = AddBlipForRadius(hunting.coords.x, hunting.coords.y, hunting.coords.z, hunting.radius)
-                SetBlipSprite(blip, 442)
-                SetBlipAsShortRange(blip, true)
-                SetBlipScale(blip, 0.8)
-                SetBlipColour(blip, 0)
-                SetBlipColour(huntingradius, 0)
-                SetBlipAlpha(huntingradius, 40)
-                BeginTextCommandSetBlipName("STRING")
-                AddTextComponentString(hunting.label)
-                EndTextCommandSetBlipName(blip)
-            end
-            -- Creates the Sphere --
-            huntingzone = lib.zones.sphere({
-                coords = hunting.coords,
-                radius = hunting.radius,
-                debug = Config.Debug,
-                onEnter = function()
-                    inHuntingZone = true
-                end,
-                onExit = function()
-                    inHuntingZone = false
-                end
-            })
-    	end
-    end
-    -- No Dispatch Zone --
-    if Config.Locations['NoDispatchZones'][1] then
-    	for _, nodispatch in pairs(Config.Locations["NoDispatchZones"]) do
-            nodispatchzone = lib.zones.box({
-                coords = nodispatch.coords,
-                size = vec3(nodispatch.length, nodispatch.width, nodispatch.maxZ - nodispatch.minZ),
-                rotation = nodispatch.heading,
-                debug = Config.Debug,
-                onEnter = function()
-                    inNoDispatchZone = true
-                end,
-                onExit = function()
-                    inNoDispatchZone = false
-                end
-            })
-    	end
-    end
-end
-
-local function removeZones()
-    -- Hunting Zone --
-    huntingzone:remove()
-    -- No Dispatch Zone --
-    nodispatchzone:remove()
-end
-
 -- Keybind
 local RespondToDispatch = lib.addKeybind({
     name = 'RespondToDispatch',
@@ -249,7 +267,7 @@ local OpenDispatchMenu = lib.addKeybind({
 RegisterNetEvent('ps-dispatch:client:notify', function(data, source)
     if data.alertTime == nil then data.alertTime = Config.AlertTime end
     local timer = data.alertTime * 1000
-    
+
     if alertsDisabled then return end
     if not isJobValid(data.jobs) then return end
     if not IsOnDuty() then return end
@@ -264,7 +282,7 @@ RegisterNetEvent('ps-dispatch:client:notify', function(data, source)
         }
     })
 
-    addBlip(data, Config.Blips[data.codeName] or data)
+    addBlip(data, Config.Blips[data.codeName] or data.alert)
 
     RespondToDispatch:disable(false)
     OpenDispatchMenu:disable(true)
@@ -288,6 +306,7 @@ end)
 
 RegisterNetEvent('ps-dispatch:client:openMenu', function(data)
     if not isJobValid(PlayerData.job.type) then return end
+    if not IsOnDuty() then return end
 
     if #data == 0 then
         lib.notify({ description = locale('no_calls'), position = 'top', type = 'error' })
@@ -300,7 +319,10 @@ end)
 -- EventHandlers
 RegisterNetEvent("QBCore:Client:OnJobUpdate", setupDispatch)
 
-AddEventHandler('QBCore:Client:OnPlayerLoaded', setupDispatch)
+AddEventHandler('QBCore:Client:OnPlayerLoaded', function()
+    setupDispatch()
+    createZones()
+end)
 
 AddEventHandler('QBCore:Client:OnPlayerUnload', removeZones)
 
